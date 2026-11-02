@@ -520,6 +520,14 @@ int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable);
 int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy);
 int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy);
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
+
+/* any DFS sub-channel in the chandef, not only the control channel */
+static inline bool mt7615_dfs_required(struct mt7615_phy *phy)
+{
+	return cfg80211_chandef_dfs_required(phy->mt76->hw->wiphy,
+					     &phy->mt76->chandef,
+					     NL80211_IFTYPE_AP) > 0;
+}
 int mt7615_mcu_set_protection(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 			      u8 ht_mode, bool use_cts_prot);
 int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
