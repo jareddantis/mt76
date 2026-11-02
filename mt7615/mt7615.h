@@ -321,6 +321,9 @@ enum mt7615_rdd_cmd {
 	RDD_RESUME_BF,
 };
 
+/* MT7663 firmware numbers RDD_CAC_START and up as on mt7915 */
+#define MT7663_RDD_CAC_START	50
+
 static inline struct mt7615_phy *
 mt7615_hw_phy(struct ieee80211_hw *hw)
 {
