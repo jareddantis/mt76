@@ -397,8 +397,10 @@ mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	r = (struct mt7615_mcu_rdd_report *)skb->data;
 
-	if (!dev->radar_pattern.n_pulses && !r->long_detected &&
-	    !r->constant_prf_detected && !r->staggered_prf_detected)
+	/* MT7663 firmware reports radar with no detection flags set */
+	if (!is_mt7663(&dev->mt76) && !dev->radar_pattern.n_pulses &&
+	    !r->long_detected && !r->constant_prf_detected &&
+	    !r->staggered_prf_detected)
 		return;
 
 	if (r->band_idx && dev->mt76.phys[MT_BAND1])
