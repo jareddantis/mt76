@@ -48,6 +48,29 @@ mt7615_radar_pattern_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_pattern, NULL,
 			 mt7615_radar_pattern_set, "%lld\n");
 
+/* val = cmd << 16 | rdd_idx << 8 | arg */
+static int
+mt7615_rdd_ctrl_set(void *data, u64 val)
+{
+	struct mt7615_dev *dev = data;
+	u8 cmd = val >> 16, idx = val >> 8, arg = val;
+	int err;
+
+	if (!mt7615_wait_for_mcu_init(dev))
+		return 0;
+
+	mt7615_mutex_acquire(dev);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, cmd, idx, MT_RX_SEL0, arg);
+	mt7615_mutex_release(dev);
+
+	dev_info(dev->mt76.dev, "rdd_ctrl cmd=%u idx=%u arg=%u: %d\n",
+		 cmd, idx, arg, err);
+
+	return err;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_rdd_ctrl, NULL, mt7615_rdd_ctrl_set, "%llx\n");
+
 static int mt7615_config(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
@@ -588,6 +611,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 				   &dev->radar_pattern.power);
 		debugfs_create_file("radar_trigger", 0200, dir, dev,
 				    &fops_radar_pattern);
+		debugfs_create_file("rdd_ctrl", 0200, dir, dev,
+				    &fops_rdd_ctrl);
 	}
 
 	debugfs_create_file("reset_test", 0200, dir, dev,

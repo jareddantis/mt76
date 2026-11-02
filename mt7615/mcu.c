@@ -384,6 +384,10 @@ mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	r = (struct mt7615_mcu_rdd_report *)skb->data;
 
+	dev_info(dev->mt76.dev, "RDD_REPORT len=%u\n", skb->len);
+	print_hex_dump(KERN_INFO, "rdd: ", DUMP_PREFIX_OFFSET, 16, 1,
+		       skb->data, min_t(u32, skb->len, 256), false);
+
 	/* MT7663 firmware reports radar with no detection flags set */
 	if (!is_mt7663(&dev->mt76) && !dev->radar_pattern.n_pulses &&
 	    !r->long_detected && !r->constant_prf_detected &&
@@ -392,6 +396,11 @@ mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	if (r->band_idx && dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
+
+	dev_info(dev->mt76.dev,
+		 "RDD band=%u dfs_state=%d phy_dfs_state=%d radar_enabled=%d region=%d\n",
+		 r->band_idx, mphy->dfs_state, mt76_phy_dfs_state(mphy),
+		 mphy->radar_enabled, dev->mt76.region);
 
 	/* radar_enabled can be false after the CAC; use the detector state */
 	if (mphy->dfs_state < MT_DFS_STATE_CAC)
