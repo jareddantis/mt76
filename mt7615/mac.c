@@ -2210,11 +2210,16 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 	enum mt76_dfs_state dfs_state, prev_state;
 	int err;
 
-	if (is_mt7663(&dev->mt76))
+	if (is_mt7663(&dev->mt76) && !mt76_is_mmio(&dev->mt76))
 		return 0;
 
 	prev_state = phy->mt76->dfs_state;
 	dfs_state = mt76_phy_dfs_state(phy->mt76);
+
+	/* RDD is untested on offload firmware: fail the CAC, do not fake it */
+	if (mt7615_firmware_offload(dev))
+		return dfs_state > MT_DFS_STATE_DISABLED ? -EOPNOTSUPP : 0;
+
 	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
 	    dfs_state < MT_DFS_STATE_CAC)
 		dfs_state = MT_DFS_STATE_ACTIVE;
