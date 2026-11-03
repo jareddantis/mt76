@@ -2109,6 +2109,14 @@ void mt7615_tx_token_put(struct mt7615_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7615_tx_token_put);
 
+static int mt7615_dfs_cac_cmd(struct mt7615_dev *dev, int cmd, u8 index)
+{
+	if (is_mt7663(&dev->mt76))
+		cmd += MT7663_RDD_CAC_START - RDD_CAC_START;
+
+	return mt76_connac_mcu_rdd_cmd(&dev->mt76, cmd, index, MT_RX_SEL0, 0);
+}
+
 static void mt7615_dfs_stop_radar_detector(struct mt7615_phy *phy)
 {
 	struct mt7615_dev *dev = phy->dev;
@@ -2142,8 +2150,7 @@ static int mt7615_dfs_start_radar_detector(struct mt7615_phy *phy)
 	int err;
 
 	/* start CAC */
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_START, ext_phy,
-				      MT_RX_SEL0, 0);
+	err = mt7615_dfs_cac_cmd(dev, RDD_CAC_START, ext_phy);
 	if (err < 0)
 		return err;
 
@@ -2204,19 +2211,22 @@ mt7615_dfs_init_radar_specs(struct mt7615_phy *phy)
 
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 {
-	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
 	enum mt76_dfs_state dfs_state, prev_state;
 	int err;
 
-	if (is_mt7663(&dev->mt76))
+	if (is_mt7663(&dev->mt76) && !mt76_is_mmio(&dev->mt76))
 		return 0;
 
 	prev_state = phy->mt76->dfs_state;
 	dfs_state = mt76_phy_dfs_state(phy->mt76);
-	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-	    dfs_state < MT_DFS_STATE_CAC)
+
+	/* RDD is untested on offload firmware: fail the CAC, do not fake it */
+	if (mt7615_firmware_offload(dev))
+		return dfs_state > MT_DFS_STATE_DISABLED ? -EOPNOTSUPP : 0;
+
+	if (mt7615_dfs_required(phy) && dfs_state < MT_DFS_STATE_CAC)
 		dfs_state = MT_DFS_STATE_ACTIVE;
 
 	if (prev_state == dfs_state)
@@ -2240,8 +2250,7 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 	if (dfs_state == MT_DFS_STATE_CAC)
 		return 0;
 
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_END,
-				      ext_phy, MT_RX_SEL0, 0);
+	err = mt7615_dfs_cac_cmd(dev, RDD_CAC_END, ext_phy);
 	if (err < 0) {
 		phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
 		return err;
@@ -2251,8 +2260,7 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 	return 0;
 
 stop:
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_NORMAL_START, ext_phy,
-				      MT_RX_SEL0, 0);
+	err = mt7615_dfs_cac_cmd(dev, RDD_NORMAL_START, ext_phy);
 	if (err < 0)
 		return err;
 

@@ -571,7 +571,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7615_radio_read);
 
-	if (is_mt7615(&dev->mt76)) {
+	if (is_mt7615(&dev->mt76) ||
+	    (is_mt7663(&dev->mt76) && mt76_is_mmio(&dev->mt76))) {
 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 				   &dev->hw_pattern);
 		/* test pattern knobs */

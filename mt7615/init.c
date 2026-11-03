@@ -334,7 +334,6 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
 	struct mt7615_phy *phy = mphy->priv;
-	struct cfg80211_chan_def *chandef = &mphy->chandef;
 
 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
@@ -344,7 +343,7 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 
 	mt7615_mutex_acquire(dev);
 
-	if (chandef->chan->flags & IEEE80211_CHAN_RADAR)
+	if (mt7615_dfs_required(phy))
 		mt7615_dfs_init_radar_detector(phy);
 
 	if (mt7615_firmware_offload(phy->dev)) {
@@ -375,7 +374,7 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 	hw->sta_data_size = sizeof(struct mt7615_sta);
 	hw->vif_data_size = sizeof(struct mt7615_vif);
 
-	if (is_mt7663(&phy->dev->mt76)) {
+	if (is_mt7663(&phy->dev->mt76) && !mt76_is_mmio(&phy->dev->mt76)) {
 		wiphy->iface_combinations = if_comb;
 		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	} else {
